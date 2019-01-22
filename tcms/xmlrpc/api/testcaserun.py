@@ -96,9 +96,8 @@ def create(values):
             case=form.cleaned_data['case'],
             build=form.cleaned_data['build'],
             assignee=form.cleaned_data['assignee'],
-            case_run_status=form.cleaned_data['case_run_status'],
+            status=form.cleaned_data['status'],
             case_text_version=form.cleaned_data['case_text_version'],
-            notes=form.cleaned_data['notes'],
             sortkey=form.cleaned_data['sortkey']
         )
     else:
@@ -149,16 +148,10 @@ def update(case_run_id, values, **kwargs):
         if form.cleaned_data['assignee']:
             tcr.assignee = form.cleaned_data['assignee']
 
-        if form.cleaned_data['case_run_status']:
-            tcr.case_run_status = form.cleaned_data['case_run_status']
+        if form.cleaned_data['status']:
+            tcr.status = form.cleaned_data['status']
             request = kwargs.get(REQUEST_KEY)
             tcr.tested_by = request.user
-
-        if 'notes' in values:
-            if values['notes'] in (None, ''):
-                tcr.notes = values['notes']
-            if form.cleaned_data['notes']:
-                tcr.notes = form.cleaned_data['notes']
 
         if form.cleaned_data['sortkey'] is not None:
             tcr.sortkey = form.cleaned_data['sortkey']

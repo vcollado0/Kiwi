@@ -165,10 +165,9 @@ class TestCreateNewRun(BasePlanCase):
             self.assertEqual(None, case_run.tested_by)
             self.assertEqual(self.tester, case_run.assignee)
             self.assertEqual(TestCaseRunStatus.objects.get(name='IDLE'),
-                             case_run.case_run_status)
-            self.assertEqual(0, case_run.case_text_version)
+                             case_run.status)
+            self.assertEqual(case.history.latest().history_id, case_run.case_text_version)
             self.assertEqual(new_run.build, case_run.build)
-            self.assertEqual(None, case_run.running_date)
             self.assertEqual(None, case_run.close_date)
 
 
@@ -263,7 +262,7 @@ class TestStartCloneRunFromRunPage(CloneRunBaseTest):
         for origin_case_run, cloned_case_run in zip((self.case_run_1, self.case_run_2),
                                                     cloned_run.case_run.order_by('pk')):
             self.assertEqual(TestCaseRunStatus.objects.get(name='IDLE'),
-                             cloned_case_run.case_run_status)
+                             cloned_case_run.status)
             self.assertEqual(origin_case_run.assignee, cloned_case_run.assignee)
 
 
@@ -475,30 +474,27 @@ class TestUpdateCaseRunText(BaseCaseRun):
 
     @classmethod
     def setUpTestData(cls):
-        super(TestUpdateCaseRunText, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.update_url = reverse('testruns-update_case_run_text',
                                  args=[cls.test_run.pk])
 
         # To increase case text version
-        cls.case_run_1.case.add_text(action='action',
-                                     effect='effect',
-                                     setup='setup',
-                                     breakdown='breakdown')
-        cls.case_run_1.case.add_text(action='action_1',
-                                     effect='effect_1',
-                                     setup='setup_1',
-                                     breakdown='breakdown_1')
+        cls.case_run_1.case.text = "Scenario Version 1"
+        cls.case_run_1.case.save()
+
+        cls.case_run_1.case.text = "Scenario Version 2"
+        cls.case_run_1.case.save()
 
     def test_update_selected_case_runs(self):
+        self.assertNotEqual(self.case_run_1.case.history.latest().history_id,
+                            self.case_run_1.case_text_version)
         response = self.client.post(self.update_url,
                                     {'case_run': [self.case_run_1.pk]},
                                     follow=True)
 
         self.assertContains(response, '1 CaseRun(s) updated:')
-
-        self.assertEqual(self.case_run_1.case.latest_text_version(),
-                         self.case_run_1.latest_text().case_text_version)
+        self.assertEqual(self.case_run_1.case.text, "Scenario Version 2")
 
 
 class TestEditRun(BaseCaseRun):

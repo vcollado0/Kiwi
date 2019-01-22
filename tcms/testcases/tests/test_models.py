@@ -13,8 +13,6 @@ from tcms.tests import BasePlanCase
 from tcms.tests.factories import ComponentFactory
 from tcms.tests.factories import BuildFactory
 from tcms.tests.factories import TestCaseComponentFactory
-from tcms.tests.factories import TestCaseEmailSettingsFactory
-from tcms.tests.factories import TestCaseFactory
 from tcms.tests.factories import TestCaseRunFactory
 from tcms.tests.factories import TestCaseTagFactory
 from tcms.tests.factories import TestRunFactory
@@ -123,25 +121,6 @@ class TestCaseRemoveComponent(BasePlanCase):
                 self.component_2.pk))
 
 
-class TestCaseRemovePlan(BasePlanCase):
-    """Test TestCase.remove_plan"""
-
-    @classmethod
-    def setUpTestData(cls):
-        super(TestCaseRemovePlan, cls).setUpTestData()
-
-        cls.new_case = TestCaseFactory(author=cls.tester, default_tester=None, reviewer=cls.tester,
-                                       plan=[cls.plan])
-
-    def test_remove_plan(self):
-        self.new_case.remove_plan(self.plan)
-
-        found = self.plan.case.filter(pk=self.new_case.pk).exists()
-        self.assertFalse(
-            found, 'Case {0} should has no relationship to plan {1} now.'.format(self.new_case.pk,
-                                                                                 self.plan.pk))
-
-
 class TestCaseRemoveTag(BasePlanCase):
     """Test TestCase.remove_tag"""
 
@@ -165,14 +144,11 @@ class TestSendMailOnCaseIsUpdated(BasePlanCase):
     """Test send mail on case post_save signal is triggered"""
     @classmethod
     def setUpTestData(cls):
-        super(TestSendMailOnCaseIsUpdated, cls).setUpTestData()
+        super().setUpTestData()
 
-        cls.case.add_text('action', 'effect', 'setup', 'breakdown')
-
-        cls.email_setting = TestCaseEmailSettingsFactory(
-            case=cls.case,
-            notify_on_case_update=True,
-            auto_to_case_author=True)
+        cls.case.emailing.notify_on_case_update = True
+        cls.case.emailing.auto_to_case_author = True
+        cls.case.emailing.save()
 
         cls.case_editor = User.objects.create_user(username='editor')
         # This is actually done when update a case. Setting current_user

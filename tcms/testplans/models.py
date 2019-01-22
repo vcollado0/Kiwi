@@ -46,7 +46,7 @@ class TestPlan(TCMSActionModel):
     product = models.ForeignKey('management.Product', related_name='plan',
                                 on_delete=models.CASCADE)
     type = models.ForeignKey(PlanType, on_delete=models.CASCADE)
-    parent = models.ForeignKey('self', blank=True, null=True, related_name='child_set',
+    parent = models.ForeignKey('TestPlan', blank=True, null=True, related_name='child_set',
                                on_delete=models.CASCADE)
 
     tag = models.ManyToManyField('management.Tag',
@@ -192,6 +192,8 @@ class TestPlan(TCMSActionModel):
             tpcases_src = self.case.all()
 
             if copy_cases:
+                # todo: use the function which clones the test cases instead of
+                # duplicating the clone operation here
                 for tpcase_src in tpcases_src:
                     tcp = get_object_or_404(TestCasePlan, plan=self, case=tpcase_src)
                     author = new_case_author or tpcase_src.author
@@ -207,12 +209,12 @@ class TestPlan(TCMSActionModel):
                         arguments=tpcase_src.arguments,
                         summary=tpcase_src.summary,
                         requirement=tpcase_src.requirement,
-                        alias=tpcase_src.alias,
                         case_status=TestCaseStatus.get_proposed(),
                         category=tc_category,
                         priority=tpcase_src.priority,
                         author=author,
-                        default_tester=default_tester)
+                        default_tester=default_tester,
+                        text=tpcase_src.text)
 
                     # Add case to plan.
                     tp_dest.add_case(tpcase_dest, tcp.sortkey)
@@ -230,16 +232,6 @@ class TestPlan(TCMSActionModel):
                                 description=component.description)
 
                         tpcase_dest.add_component(new_c)
-
-                    text = tpcase_src.latest_text()
-
-                    if text:
-                        tpcase_dest.add_text(author=text.author,
-                                             action=text.action,
-                                             effect=text.effect,
-                                             setup=text.setup,
-                                             breakdown=text.breakdown,
-                                             create_date=text.create_date)
             else:
                 for tpcase_src in tpcases_src:
                     tcp = get_object_or_404(TestCasePlan, plan=self, case=tpcase_src)

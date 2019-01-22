@@ -126,24 +126,31 @@ class BasePlanCase(LoggedInTestCase):
             reviewer=cls.tester,
             case_status=cls.case_status_confirmed,
             plan=[cls.plan])
+        cls.case.save()  # will generate history object
+
         cls.case_1 = TestCaseFactory(
             author=cls.tester,
             default_tester=None,
             reviewer=cls.tester,
             case_status=cls.case_status_confirmed,
             plan=[cls.plan])
+        cls.case_1.save()  # will generate history object
+
         cls.case_2 = TestCaseFactory(
             author=cls.tester,
             default_tester=None,
             reviewer=cls.tester,
             case_status=cls.case_status_confirmed,
             plan=[cls.plan])
+        cls.case_2.save()  # will generate history object
+
         cls.case_3 = TestCaseFactory(
             author=cls.tester,
             default_tester=None,
             reviewer=cls.tester,
             case_status=cls.case_status_confirmed,
             plan=[cls.plan])
+        cls.case_3.save()  # will generate history object
 
         cls.case_4 = TestCaseFactory(
             author=cls.tester,
@@ -151,18 +158,23 @@ class BasePlanCase(LoggedInTestCase):
             reviewer=cls.tester,
             case_status=cls.case_status_confirmed,
             plan=[cls.plan])
+        cls.case_4.save()  # will generate history object
+
         cls.case_5 = TestCaseFactory(
             author=cls.tester,
             default_tester=None,
             reviewer=cls.tester,
             case_status=cls.case_status_confirmed,
             plan=[cls.plan])
+        cls.case_5.save()  # will generate history object
+
         cls.case_6 = TestCaseFactory(
             author=cls.tester,
             default_tester=None,
             reviewer=cls.tester,
             case_status=cls.case_status_confirmed,
             plan=[cls.plan])
+        cls.case_6.save()  # will generate history object
 
 
 class BaseCaseRun(BasePlanCase):
@@ -174,7 +186,7 @@ class BaseCaseRun(BasePlanCase):
 
         # todo: we need a linter to find all places where we get statuses
         # by hard-coded names instead of class based attribute constants!
-        cls.case_run_status_idle = TestCaseRunStatus.objects.get(name='IDLE')
+        cls.status_idle = TestCaseRunStatus.objects.get(name='IDLE')
 
         cls.build = BuildFactory(product=cls.product)
 
@@ -188,7 +200,7 @@ class BaseCaseRun(BasePlanCase):
         for i, case in enumerate((cls.case_1, cls.case_2, cls.case_3), 1):
             case_runs.append(TestCaseRunFactory(assignee=cls.tester,
                                                 run=cls.test_run, build=cls.build,
-                                                case_run_status=cls.case_run_status_idle,
+                                                status=cls.status_idle,
                                                 case=case, sortkey=i * 10))
 
         # used in other tests as well
@@ -206,7 +218,7 @@ class BaseCaseRun(BasePlanCase):
         for i, case in enumerate((cls.case_4, cls.case_5, cls.case_6), 1):
             case_runs.append(TestCaseRunFactory(assignee=cls.tester, tested_by=cls.tester,
                                                 run=cls.test_run_1, build=cls.build,
-                                                case_run_status=cls.case_run_status_idle,
+                                                status=cls.status_idle,
                                                 case=case, sortkey=i * 10))
         # used in other tests as well
         cls.case_run_4 = case_runs[3]

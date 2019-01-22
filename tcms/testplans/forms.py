@@ -3,8 +3,8 @@ from django import forms
 
 from tcms.core.widgets import SimpleMDE
 from tcms.core.utils import string_to_list
-from tcms.core.forms.fields import UserField, StripURLField
-from tcms.management.models import Product, Version, Tag
+from tcms.core.forms.fields import StripURLField
+from tcms.management.models import Product, Version
 from .models import TestPlan, PlanType
 
 
@@ -58,7 +58,6 @@ class BasePlanForm(forms.Form):
 
 
 class NewPlanForm(BasePlanForm):
-    tag = forms.CharField(required=False)
 
     auto_to_plan_author = forms.BooleanField(
         initial=True,
@@ -81,15 +80,6 @@ class NewPlanForm(BasePlanForm):
         required=False
     )
     is_active = forms.BooleanField(required=False, initial=True)
-
-    def clean_tag(self):
-        return Tag.objects.filter(
-            name__in=string_to_list(self.cleaned_data['tag'])
-        )
-
-
-class EditPlanForm(NewPlanForm):
-    author = UserField(required=False)
 
 
 # =========== Forms for search/filter ==============
@@ -191,33 +181,5 @@ class ClonePlanForm(BasePlanForm):
         label='Set source plan as parent',
         help_text='Check it to set the source plan as parent of new cloned '
                   'plan.',
-        required=False
-    )
-
-
-# =========== Forms for XML-RPC functions ==============
-
-
-class XMLRPCNewPlanForm(EditPlanForm):
-    text = forms.CharField()
-
-
-class XMLRPCEditPlanForm(EditPlanForm):
-    name = forms.CharField(
-        label="Plan name", required=False
-    )
-    type = forms.ModelChoiceField(
-        label="Type",
-        queryset=PlanType.objects.all(),
-        required=False
-    )
-    product = forms.ModelChoiceField(
-        label="Product",
-        queryset=Product.objects.all(),
-        required=False,
-    )
-    product_version = forms.ModelChoiceField(
-        label="Product Version",
-        queryset=Version.objects.none(),
         required=False
     )

@@ -131,7 +131,7 @@ class BaseCaseRunForm(forms.Form):
     build = forms.ModelChoiceField(
         label='Build', queryset=Build.objects.all(),
     )
-    case_run_status = forms.ModelChoiceField(
+    status = forms.ModelChoiceField(
         label='Case Run Status', queryset=TestCaseRunStatus.objects.all(),
         required=False,
     )
@@ -139,7 +139,6 @@ class BaseCaseRunForm(forms.Form):
     case_text_version = forms.IntegerField(
         label='Case text version', required=False
     )
-    notes = forms.CharField(label='Notes', required=False)
     sortkey = forms.IntegerField(label='Sortkey', required=False)
 
 
@@ -171,14 +170,12 @@ class XMLRPCNewCaseRunForm(BaseCaseRunForm):
     def clean_case_text_version(self):
         data = self.cleaned_data.get('case_text_version')
         if not data and self.cleaned_data.get('case'):
-            tc_ltxt = self.cleaned_data['case'].latest_text()
-            if tc_ltxt:
-                data = tc_ltxt.case_text_version
+            data = self.cleaned_data['case'].history.latest().history_id
 
         return data
 
-    def clean_case_run_status(self):
-        data = self.cleaned_data.get('case_run_status')
+    def clean_status(self):
+        data = self.cleaned_data.get('status')
         if not data:
             data = TestCaseRunStatus.objects.get(name='IDLE')
 

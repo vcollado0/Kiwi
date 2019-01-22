@@ -66,9 +66,9 @@ def overview(request, product_id, template_name='report/overview.html'):
     total = 0
     for row in TestCaseRun.objects.filter(
             run__plan__product=product_id
-        ).values('case_run_status__name').annotate(
-            status_count=Count('case_run_status__name')):
-        caserun_status_count[row['case_run_status__name']] = row['status_count']
+        ).values('status__name').annotate(
+            status_count=Count('status__name')):
+        caserun_status_count[row['status__name']] = row['status_count']
         total += row['status_count']
     caserun_status_count['TOTAL'] = total
 
@@ -313,6 +313,7 @@ class CustomReport(TemplateView):
             runs_total = 0
             case_runs_total = 0
             automation_total = self._data.automation_total(build_ids)
+            print(automation_total)
 
             # Status matrix used to render progress bar for each build
             status_matrix = self._data.status_matrix(build_ids)
@@ -350,9 +351,8 @@ class CustomReport(TemplateView):
                     build__in=build_ids
                 ).values('plan').distinct().count(),
                 'total_count': case_runs_total,
-                'manual_count': automation_total.get('Manual', 0),
-                'auto_count': automation_total.get('Auto', 0),
-                'both_count': automation_total.get('Both', 0),
+                'manual_count': automation_total.get(False, 0),
+                'auto_count': automation_total.get(True, 0),
             })
 
         context.update({'builds': builds})
@@ -630,7 +630,7 @@ class TestingReportCaseRuns(TestingReportBase, TestingReportCaseRunsData):
         assignees = self.get_related_users(assignees_ids)
 
         for case_run in test_case_runs:
-            status_name = status_names[case_run.case_run_status_id]
+            status_name = status_names[case_run.status_id]
             priority_value = priority_values[case_run.case.priority_id]
             tester_username = testers.get(case_run.tested_by_id, None)
             assignee_username = assignees.get(case_run.assignee_id, None)

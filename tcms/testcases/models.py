@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
-
 from django.conf import settings
 from django.urls import reverse
 from django.db import models
@@ -9,31 +7,9 @@ from django.db.models import ObjectDoesNotExist
 import vinaigrette
 
 from tcms.core.models import TCMSActionModel
-from tcms.core.utils.checksum import checksum
 from tcms.core.history import KiwiHistoricalRecords
 from tcms.issuetracker.types import IssueTrackerType
 from tcms.testcases.fields import MultipleEmailField
-
-
-AUTOMATED_CHOICES = (
-    (0, 'Manual'),
-    (1, 'Auto'),
-    (2, 'Both'),
-)
-
-
-class NoneText:  # pylint: disable=too-few-public-methods
-    author = None
-    case_text_version = 0
-    action = ''
-    effect = ''
-    setup = ''
-    breakdown = ''
-    create_date = datetime.now()
-
-    @classmethod
-    def serialize(cls):
-        return {}
 
 
 class TestCaseStatus(TCMSActionModel):
@@ -99,15 +75,14 @@ class TestCase(TCMSActionModel):
 
     case_id = models.AutoField(primary_key=True)
     create_date = models.DateTimeField(db_column='creation_date', auto_now_add=True)
-    is_automated = models.IntegerField(db_column='isautomated', default=0)
-    is_automated_proposed = models.BooleanField(default=False)
+    is_automated = models.BooleanField(default=False)
     script = models.TextField(blank=True, null=True)
     arguments = models.TextField(blank=True, null=True)
     extra_link = models.CharField(max_length=1024, default=None, blank=True, null=True)
     summary = models.CharField(max_length=255)
     requirement = models.CharField(max_length=255, blank=True, null=True)
-    alias = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True, null=True)
+    text = models.TextField(blank=True)
 
     case_status = models.ForeignKey(TestCaseStatus, on_delete=models.CASCADE)
     category = models.ForeignKey(Category, related_name='category_case',
@@ -137,9 +112,6 @@ class TestCase(TCMSActionModel):
     tag = models.ManyToManyField('management.Tag', related_name='case',
                                  through='testcases.TestCaseTag')
 
-    # todo: Auto-generated attributes from back-references:
-    # 'texts' : list of TestCaseTexts (from TestCaseTexts.case)
-
     def __str__(self):
         return self.summary
 
@@ -153,6 +125,7 @@ class TestCase(TCMSActionModel):
         serializer = TestCaseXMLRPCSerializer(model_class=cls, queryset=qs)
         return serializer.serialize_queryset()
 
+    # todo: does this check permissions ???
     @classmethod
     def create(cls, author, values):
         """
@@ -161,20 +134,21 @@ class TestCase(TCMSActionModel):
         case = cls.objects.create(
             author=author,
             is_automated=values['is_automated'],
-            is_automated_proposed=values['is_automated_proposed'],
             # sortkey = values['sortkey'],
             script=values['script'],
             arguments=values['arguments'],
             extra_link=values['extra_link'],
             summary=values['summary'],
             requirement=values['requirement'],
-            alias=values['alias'],
             case_status=values['case_status'],
             category=values['category'],
             priority=values['priority'],
             default_tester=values['default_tester'],
             notes=values['notes'],
+            text=values['text'],
         )
+
+        # todo: should use add_tag
         tags = values.get('tag')
         if tags:
             map(case.add_tag, tags)
@@ -259,10 +233,6 @@ class TestCase(TCMSActionModel):
         if query.get('is_automated'):
             queryset = queryset.filter(is_automated=query['is_automated'])
 
-        if query.get('is_automated_proposed'):
-            queryset = queryset.filter(
-                is_automated_proposed=query['is_automated_proposed'])
-
         return queryset.distinct()
 
     def add_bug(self, bug_id, bug_system_id, summary=None, description=None,
@@ -293,71 +263,10 @@ class TestCase(TCMSActionModel):
     def add_tag(self, tag):
         return TestCaseTag.objects.get_or_create(case=self, tag=tag)
 
-    def add_text(
-            self,
-            action,
-            effect,
-            setup,
-            breakdown,
-            author=None,
-            create_date=datetime.now(),
-            case_text_version=1):
-        if not author:
-            author = self.author
-
-        new_checksum = checksum(action + effect + setup + breakdown)
-        latest_text = self.latest_text()
-        old_checksum = checksum(latest_text.action +
-                                latest_text.effect +
-                                latest_text.setup +
-                                latest_text.breakdown)
-
-        if old_checksum == new_checksum:
-            return latest_text
-
-        case_text_version = self.latest_text_version() + 1
-        return TestCaseText.objects.create(
-            case=self,
-            case_text_version=case_text_version,
-            create_date=create_date,
-            author=author,
-            action=action,
-            effect=effect,
-            setup=setup,
-            breakdown=breakdown
-        )
-
-    def add_to_plan(self, plan):
-        TestCasePlan.objects.get_or_create(case=self, plan=plan)
-
-    def clear_components(self):
-        return TestCaseComponent.objects.filter(
-            case=self,
-        ).delete()
-
     def get_bugs(self):
         return Bug.objects.select_related(
             'case_run', 'bug_system'
         ).filter(case__case_id=self.case_id)
-
-    def get_components(self):
-        return self.component.all()
-
-    def get_component_names(self):
-        return self.component.values_list('name', flat=True)
-
-    def get_is_automated_form_value(self):
-        if self.is_automated == 2:
-            return [0, 1]
-
-        return (self.is_automated, )
-
-    def get_is_automated_status(self):
-        for choice in AUTOMATED_CHOICES:
-            if choice[0] == self.is_automated:
-                return choice[1] + (self.is_automated_proposed and ' (Autoproposed)' or '')
-
-        return None
 
     def get_previous_and_next(self, pk_list):
         current_idx = pk_list.index(self.pk)
@@ -372,27 +281,11 @@ class TestCase(TCMSActionModel):
     def get_text_with_version(self, case_text_version=None):
         if case_text_version:
             try:
-                return TestCaseText.objects.get(
-                    case__case_id=self.case_id,
-                    case_text_version=case_text_version
-                )
-            except TestCaseText.DoesNotExist:
-                return NoneText
+                return self.history.get(history_id=case_text_version).text
+            except ObjectDoesNotExist:
+                return self.text
 
-        return self.latest_text()
-
-    def latest_text(self, text_required=True):
-        text = self.text
-        if not text_required:
-            text = text.defer('action', 'effect', 'setup', 'breakdown')
-        latest_text = text.order_by('-case_text_version').first()
-        return latest_text or NoneText
-
-    def latest_text_version(self):
-        latest_version = self.text.order_by('-case_text_version').only('case_text_version').first()
-        if latest_version:
-            return latest_version.case_text_version
-        return 0
+        return self.text
 
     def remove_bug(self, bug_id, run_id=None):
         query = Bug.objects.filter(
@@ -411,9 +304,6 @@ class TestCase(TCMSActionModel):
         # which specifies an intermediary model so we use the model manager!
         self.component.through.objects.filter(case=self.pk, component=component.pk).delete()
 
-    def remove_plan(self, plan):
-        self.plan.through.objects.filter(case=self.pk, plan=plan.pk).delete()
-
     def remove_tag(self, tag):
         self.tag.through.objects.filter(case=self.pk, tag=tag.pk).delete()
 
@@ -427,21 +317,6 @@ class TestCase(TCMSActionModel):
             return TestCaseEmailSettings.objects.create(case=self)
 
     emailing = property(_get_email_conf)
-
-
-class TestCaseText(TCMSActionModel):
-    case = models.ForeignKey(TestCase, related_name='text', on_delete=models.CASCADE)
-    case_text_version = models.IntegerField()
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, db_column='who', on_delete=models.CASCADE)
-    create_date = models.DateTimeField(db_column='creation_ts', auto_now_add=True)
-    action = models.TextField(blank=True)
-    effect = models.TextField(blank=True)
-    setup = models.TextField(blank=True)
-    breakdown = models.TextField(blank=True)
-
-    class Meta:
-        ordering = ['case', '-case_text_version']
-        unique_together = ('case', 'case_text_version')
 
 
 class TestCasePlan(models.Model):

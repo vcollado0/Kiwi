@@ -6,26 +6,11 @@ from django.utils.translation import ugettext_lazy as _
 from tcms.core.widgets import SimpleMDE
 from tcms.core.forms.fields import UserField, StripURLField
 from tcms.core.utils import string_to_list
-from tcms.core.utils.validations import validate_bug_id
 from tcms.testplans.models import TestPlan
-from tcms.testruns.models import TestCaseRun
 from tcms.management.models import Priority, Product, Component
 from tcms.testcases.models import TestCase, Category, TestCaseStatus
-from tcms.testcases.models import Bug, AUTOMATED_CHOICES as FULL_AUTOMATED_CHOICES
 from tcms.testcases.fields import MultipleEmailField
 
-
-AUTOMATED_CHOICES = (
-    (0, 'Manual'),
-    (1, 'Auto'),
-)
-
-AUTOMATED_SERCH_CHOICES = (
-    ('', '----------'),
-    (0, 'Manual'),
-    (1, 'Auto'),
-    (2, 'Both'),
-)
 
 ITEMS_PER_PAGE_CHOICES = (
     ('20', '20'),
@@ -64,16 +49,9 @@ class BaseCaseForm(forms.Form):
     summary = forms.CharField(label="Summary", )
     default_tester = UserField(label="Default tester", required=False)
     requirement = forms.CharField(label="Requirement", required=False)
-    is_automated = forms.MultipleChoiceField(
-        choices=AUTOMATED_CHOICES,
-        widget=forms.CheckboxSelectMultiple(),
-    )
-    is_automated_proposed = forms.BooleanField(
-        label='Autoproposed', required=False
-    )
+    is_automated = forms.BooleanField(initial=False, required=False)
     script = forms.CharField(label="Script", required=False)
     arguments = forms.CharField(label="Arguments", required=False)
-    alias = forms.CharField(label="Alias", required=False)
     extra_link = StripURLField(
         label='Extra link',
         max_length=1024,
@@ -111,48 +89,26 @@ class BaseCaseForm(forms.Form):
         widget=forms.Textarea,
         required=False
     )
-    setup = forms.CharField(label="Setup", widget=SimpleMDE(), required=False)
-    action = forms.CharField(label="Actions", widget=SimpleMDE(), required=False)
-    effect = forms.CharField(label="Expect results", widget=SimpleMDE(), required=False)
-    breakdown = forms.CharField(label="Breakdown", widget=SimpleMDE(), required=False)
+    text = forms.CharField(
+        widget=SimpleMDE(),
+        required=False,
+        initial="""**Scenario**: ... what behavior will be tested ...
+  **Given** ... conditions ...
+  **When** ... actions ...
+  **Then** ... expected results ...
 
-    def __init__(self, *args, **kwargs):
-        if args:
-            self.notes_val = args[0].get('notes', None)
-            self.script_val = args[0].get('script', None)
-        elif kwargs:
-            self.notes_val = kwargs.get('notes', None)
-            self.script_val = kwargs.get('script', None)
-        else:
-            self.notes_val = ''
-            self.script_val = ''
-        super(BaseCaseForm, self).__init__(*args, **kwargs)
+*Actions*:
 
-    def clean_is_automated(self):
-        data = self.cleaned_data['is_automated']
-        if len(data) == 2:
-            return 2
+1. item
+2. item
+3. item
 
-        if data:
-            # FIXME: Should data always be a list?
-            try:
-                return int(data[0])
-            except ValueError:
-                return data[0]
+*Expected results*:
 
-        return data
-
-    def clean_script(self):
-        if self.script_val:
-            return self.cleaned_data['script']
-
-        return ''
-
-    def clean_notes(self):
-        if self.notes_val:
-            return self.cleaned_data['notes']
-
-        return ''
+1. item
+2. item
+3. item
+""")
 
     def populate(self, product_id=None):
         if product_id:
@@ -199,11 +155,7 @@ class CaseNotifyForm(forms.Form):
 
 
 class XMLRPCBaseCaseForm(BaseCaseForm):
-    is_automated = forms.ChoiceField(
-        choices=FULL_AUTOMATED_CHOICES,
-        widget=forms.CheckboxSelectMultiple(),
-        required=False,
-    )
+    pass
 
 
 class XMLRPCNewCaseForm(XMLRPCBaseCaseForm):
@@ -212,12 +164,6 @@ class XMLRPCNewCaseForm(XMLRPCBaseCaseForm):
             return TestCaseStatus.get_proposed()
 
         return self.cleaned_data['case_status']
-
-    def clean_is_automated(self):
-        if self.cleaned_data['is_automated'] == '':
-            return 0
-
-        return self.cleaned_data['is_automated']
 
 
 class XMLRPCUpdateCaseForm(XMLRPCBaseCaseForm):
@@ -271,13 +217,7 @@ class BaseCaseSearchForm(forms.Form):
         required=False
     )
     bug_id = BugField(label="Bug ID", required=False)
-    is_automated = forms.ChoiceField(
-        choices=AUTOMATED_SERCH_CHOICES,
-        required=False,
-    )
-    is_automated_proposed = forms.BooleanField(
-        label='Autoproposed', required=False
-    )
+    is_automated = forms.BooleanField(required=False)
     items_per_page = forms.ChoiceField(label='Items per page',
                                        required=False,
                                        choices=ITEMS_PER_PAGE_CHOICES)
@@ -380,24 +320,3 @@ class CloneCaseForm(forms.Form):
 
     def populate(self, case_ids):
         self.fields['case'].queryset = TestCase.objects.filter(case_id__in=case_ids)
-
-
-class CaseBugForm(forms.ModelForm):
-    case = forms.ModelChoiceField(queryset=TestCase.objects.all(),
-                                  widget=forms.HiddenInput())
-    case_run = forms.ModelChoiceField(queryset=TestCaseRun.objects.all(),
-                                      widget=forms.HiddenInput(),
-                                      required=False)
-
-    def clean(self):
-        super(CaseBugForm, self).clean()
-        bug_id = self.cleaned_data['bug_id']
-        bug_system_id = self.cleaned_data['bug_system'].pk
-
-        validate_bug_id(bug_id, bug_system_id)
-
-        return self.cleaned_data
-
-    class Meta:
-        model = Bug
-        fields = '__all__'

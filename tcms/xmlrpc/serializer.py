@@ -423,8 +423,6 @@ class TestCaseRunXMLRPCSerializer(QuerySetBasedXMLRPCSerializer):
         'case_run_id': ('case_run_id', do_nothing),
         'case_text_version': ('case_text_version', do_nothing),
         'close_date': ('close_date', datetime_to_str),
-        'notes': ('notes', do_nothing),
-        'running_date': ('running_date', datetime_to_str),
         'sortkey': ('sortkey', do_nothing),
 
         'assignee': ('assignee_id', do_nothing),
@@ -433,8 +431,8 @@ class TestCaseRunXMLRPCSerializer(QuerySetBasedXMLRPCSerializer):
         'build__name': ('build', do_nothing),
         'case': ('case_id', do_nothing),
         'case__summary': ('case', do_nothing),
-        'case_run_status': ('case_run_status_id', do_nothing),
-        'case_run_status__name': ('case_run_status', do_nothing),
+        'status': ('status_id', do_nothing),
+        'status__name': ('status', do_nothing),
         'run': ('run_id', do_nothing),
         'run__summary': ('run', do_nothing),
         'tested_by': ('tested_by_id', do_nothing),
@@ -469,14 +467,13 @@ class TestCaseXMLRPCSerializer(QuerySetBasedXMLRPCSerializer):
     """Serializer for TestCase"""
 
     values_fields_mapping = {
-        'alias': ('alias', do_nothing),
         'arguments': ('arguments', do_nothing),
         'case_id': ('case_id', do_nothing),
         'create_date': ('create_date', datetime_to_str),
         'extra_link': ('extra_link', do_nothing),
         'is_automated': ('is_automated', do_nothing),
-        'is_automated_proposed': ('is_automated_proposed', do_nothing),
         'notes': ('notes', do_nothing),
+        'text': ('text', do_nothing),
         'requirement': ('requirement', do_nothing),
         'script': ('script', do_nothing),
         'summary': ('summary', do_nothing),

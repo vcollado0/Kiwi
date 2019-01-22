@@ -31,16 +31,20 @@ $(document).ready(function() {
                 params['author__username__startswith'] = $('#id_author').val();
             };
 
+            if ($('input[name=is_automated]:checked').val() === 'true') {
+                params['is_automated'] = true;
+            };
+
+            if ($('input[name=is_automated]:checked').val() === 'false') {
+                params['is_automated'] = false;
+            };
+
             updateParamsToSearchTags('#id_tag', params);
 
             var bug_list = splitByComma($('#id_bugs').val());
             if (bug_list.length > 0) {
                 params['case_bug__bug_id__in'] = bug_list;
             };
-
-            if ($('#id_autoproposed').is(':checked')) {
-                params['is_automated_proposed'] = $('#id_autoproposed').is(':checked');
-            }
 
             dataTableJsonRPC('TestCase.filter', params, callback);
         },
@@ -93,8 +97,6 @@ $(document).ready(function() {
             updateComponent([]);
         }
     });
-
-    $('.bootstrap-switch').bootstrapSwitch();
 
     $('.selectpicker').selectpicker();
 });
